@@ -22,6 +22,21 @@ export default function InfoEditorPage({ params }: { params: Promise<{ id: strin
     load()
   }, [id])
 
+  useEffect(() => {
+    if (state.success) {
+      async function reload() {
+        const supabase = createClient()
+        const { data } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', id)
+          .single()
+        if (data) setProject(data)
+      }
+      reload()
+    }
+  }, [state.success])
+
   if (loading || !project) {
     return <main className="min-h-screen bg-neutral-950 p-8"><p className="text-neutral-400">Loading...</p></main>
   }

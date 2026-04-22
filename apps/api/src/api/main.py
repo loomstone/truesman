@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routes import health
+from .routes import health, retell
 
 app = FastAPI(
     title="Truesman API",
@@ -22,6 +22,7 @@ app.add_middleware(
 )
 
 app.include_router(health.router, prefix="/api")
+app.include_router(retell.router, prefix="/api")
 
 
 @app.get("/")

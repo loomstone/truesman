@@ -22,6 +22,21 @@ export default function RulesEditorPage({ params }: { params: Promise<{ id: stri
     load()
   }, [id])
 
+  useEffect(() => {
+    if (state.success) {
+      async function reload() {
+        const supabase = createClient()
+        const { data } = await supabase
+          .from('project_reservation_rules')
+          .select('*')
+          .eq('project_id', id)
+          .single()
+        if (data) setRules(data)
+      }
+      reload()
+    }
+  }, [state.success])
+
   if (loading || !rules) {
     return <main className="min-h-screen bg-neutral-950 p-8"><p className="text-neutral-400">Loading...</p></main>
   }

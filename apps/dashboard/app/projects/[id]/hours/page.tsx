@@ -35,6 +35,21 @@ export default function HoursEditorPage({ params }: { params: Promise<{ id: stri
     load()
   }, [id])
 
+  useEffect(() => {
+    if (state.success) {
+      async function reload() {
+        const supabase = createClient()
+        const { data } = await supabase
+          .from('project_hours')
+          .select('day_of_week, open_time, close_time, is_closed')
+          .eq('project_id', id)
+          .order('day_of_week')
+        if (data) setHours(data)
+      }
+      reload()
+    }
+  }, [state.success])
+
   function toggleClosed(dow: number) {
     setHours(prev => prev.map(h =>
       h.day_of_week === dow ? { ...h, is_closed: !h.is_closed } : h
