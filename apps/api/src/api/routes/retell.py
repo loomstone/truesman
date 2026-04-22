@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+import pytz
 from fastapi import APIRouter, Request
 from ..db import get_supabase
 
@@ -20,6 +21,57 @@ async def get_default_project() -> dict | None:
     sb = get_supabase()
     result = sb.table("projects").select("*").limit(1).execute()
     return result.data[0] if result.data else None
+
+
+@router.post("/tools/get_current_status")
+async def tool_get_current_status(request: Request) -> dict:
+    body = await request.json()
+    project = await get_default_project()
+    if not project:
+        return {"result": "Sorry, I could not determine our current status."}
+
+    tz_name = project.get("timezone", "America/Los_Angeles")
+    try:
+        tz = pytz.timezone(tz_name)
+    except pytz.exceptions.UnknownTimeZoneError:
+        tz = pytz.timezone("America/Los_Angeles")
+
+    now = datetime.now(tz)
+    current_day = now.weekday()
+    current_time_str = now.strftime("%I:%M %p")
+    current_date_str = now.strftime("%A, %B %d, %Y")
+
+    sb = get_supabase()
+    hours_result = sb.table("project_hours").select("*").eq(
+        "project_id", project["id"]
+    ).eq("day_of_week", current_day).single().execute()
+
+    if not hours_result.data or hours_result.data["is_closed"]:
+        return {
+            "result": f"It is currently {current_time_str} on {current_date_str}. We are closed today."
+        }
+
+    h = hours_result.data
+    open_time = datetime.strptime(h["open_time"][:5], "%H:%M").time()
+    close_time = datetime.strptime(h["close_time"][:5], "%H:%M").time()
+    current_time = now.time()
+
+    if open_time <= current_time <= close_time:
+        close_formatted = datetime.strptime(h["close_time"][:5], "%H:%M").strftime("%I:%M %p")
+        return {
+            "result": f"It is currently {current_time_str} on {current_date_str}. We are currently open and will close at {close_formatted} today."
+        }
+    else:
+        open_formatted = datetime.strptime(h["open_time"][:5], "%H:%M").strftime("%I:%M %p")
+        close_formatted = datetime.strptime(h["close_time"][:5], "%H:%M").strftime("%I:%M %p")
+        if current_time < open_time:
+            return {
+                "result": f"It is currently {current_time_str} on {current_date_str}. We are not open yet today. We open at {open_formatted}."
+            }
+        else:
+            return {
+                "result": f"It is currently {current_time_str} on {current_date_str}. We are closed for today. Our hours were {open_formatted} to {close_formatted}."
+            }
 
 
 @router.post("/tools/get_business_hours")
